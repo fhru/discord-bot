@@ -1,0 +1,15 @@
+{
+  "name": "rubotcore2",
+  "version": "1.0.0",
+  "description": "Rubot - Discord Script Sales Bot",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy-commands.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.5.0",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.1"
+  }
+}
