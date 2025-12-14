@@ -4,8 +4,8 @@ const { backupDatabase } = require('../utils/backup');
 
 const statuses = [
   { name: '/help', type: ActivityType.Listening },
-  { name: 'Growtopia', type: ActivityType.Playing },
-  { name: '{users} users', type: ActivityType.Watching },
+  { name: 'Depo via saweria.co/rubot', type: ActivityType.Playing },
+  { name: '{users} Members', type: ActivityType.Watching },
 ];
 
 let statusIndex = 0;

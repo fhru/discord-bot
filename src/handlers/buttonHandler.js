@@ -297,6 +297,14 @@ async function handleConfirmBuy(interaction) {
     }
   }
 
+  // Add buyer role
+  const BUYER_ROLE_ID = '1153399882032365598';
+  try {
+    await interaction.member.roles.add(BUYER_ROLE_ID);
+  } catch (e) {
+    console.error('Failed to add buyer role:', e);
+  }
+
   // Send transaction log
   const logChannelId = settingsService.getSetting('transaction_log_channel');
   if (logChannelId) {
