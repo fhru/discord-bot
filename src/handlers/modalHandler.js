@@ -145,7 +145,7 @@ async function handleAddKeyModal(interaction) {
   }
 
   // Check if user has purchased this script
-  if (!luciferKeyService.hasKeyForScript(interaction.user.id, scriptCode)) {
+  if (!await luciferKeyService.hasKeyForScript(interaction.user.id, scriptCode)) {
     return interaction.reply({ 
       embeds: [errorEmbed('Error', 'You need to purchase this script first before adding extra keys.')], 
       flags: MessageFlags.Ephemeral 
@@ -153,7 +153,7 @@ async function handleAddKeyModal(interaction) {
   }
 
   // Check if lucifer username already used for this script
-  if (luciferKeyService.isUsernameUsedForScript(scriptCode, luciferUsername)) {
+  if (await luciferKeyService.isUsernameUsedForScript(scriptCode, luciferUsername)) {
     return interaction.reply({ 
       embeds: [errorEmbed('Error', `Lucifer username \`${luciferUsername}\` is already used for this script.`)], 
       flags: MessageFlags.Ephemeral 
@@ -173,7 +173,7 @@ async function handleAddKeyModal(interaction) {
   }
 
   // Create new key
-  luciferKeyService.createLuciferKey(interaction.user.id, scriptCode, luciferUsername);
+  await luciferKeyService.createLuciferKey(interaction.user.id, scriptCode, luciferUsername);
 
   return interaction.reply({
     embeds: [successEmbed('Key Added', `New Lucifer key added!\n\n🔸 **Script:** ${script.name}\n🔸 **Username:** \`${luciferUsername}\`\n🔸 **Cost:** ${formatIDR(addKeyPrice)}`)],

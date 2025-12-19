@@ -41,7 +41,7 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'list') {
-      const keys = luciferKeyService.getAllLuciferKeys();
+      const keys = await luciferKeyService.getAllLuciferKeys();
       
       return paginatedReply(interaction, {
         title: 'Lucifer Keys',
@@ -53,7 +53,7 @@ module.exports = {
 
     if (subcommand === 'listuser') {
       const target = interaction.options.getUser('target');
-      const keys = luciferKeyService.getLuciferKeysByUser(target.id);
+      const keys = await luciferKeyService.getLuciferKeysByUser(target.id);
 
       return paginatedReply(interaction, {
         title: `Lucifer Keys - ${target.username}`,
@@ -65,7 +65,7 @@ module.exports = {
 
     if (subcommand === 'listscript') {
       const code = interaction.options.getString('code');
-      const keys = luciferKeyService.getLuciferKeysByScript(code);
+      const keys = await luciferKeyService.getLuciferKeysByScript(code);
 
       return paginatedReply(interaction, {
         title: `Lucifer Keys - Script: ${code}`,
@@ -77,7 +77,7 @@ module.exports = {
 
     if (subcommand === 'delete') {
       const id = interaction.options.getInteger('id');
-      const result = luciferKeyService.deleteLuciferKey(id);
+      const result = await luciferKeyService.deleteLuciferKey(id);
 
       if (result.changes === 0) {
         return interaction.reply({ embeds: [errorEmbed('Error', `Key #${id} not found.`)], flags: MessageFlags.Ephemeral });
@@ -103,12 +103,12 @@ module.exports = {
       }
 
       // Check if username is already used for this script
-      if (luciferKeyService.isUsernameUsedForScript(code, luciferUsername)) {
+      if (await luciferKeyService.isUsernameUsedForScript(code, luciferUsername)) {
         return interaction.reply({ embeds: [errorEmbed('Error', `Lucifer username \`${luciferUsername}\` is already used for this script.`)], flags: MessageFlags.Ephemeral });
       }
 
       // Create lucifer key
-      luciferKeyService.createLuciferKey(target.id, code, luciferUsername);
+      await luciferKeyService.createLuciferKey(target.id, code, luciferUsername);
 
       return interaction.reply({ 
         embeds: [successEmbed('Success', `Lucifer Key added!\n\n🔸 **User:** <@${target.id}>\n🔸 **Script:** ${script.name}\n🔸 **Username:** \`${luciferUsername}\``)], 

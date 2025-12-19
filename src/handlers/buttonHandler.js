@@ -5,50 +5,50 @@ const {
   TextInputBuilder,
   TextInputStyle,
   MessageFlags,
-} = require('discord.js');
-const userService = require('../services/userService');
-const scriptService = require('../services/scriptService');
-const settingsService = require('../services/settingsService');
-const luciferKeyService = require('../services/luciferKeyService');
-const transactionService = require('../services/transactionService');
+} = require("discord.js");
+const userService = require("../services/userService");
+const scriptService = require("../services/scriptService");
+const settingsService = require("../services/settingsService");
+const luciferKeyService = require("../services/luciferKeyService");
+const transactionService = require("../services/transactionService");
 const {
   successEmbed,
   errorEmbed,
   infoEmbed,
   createEmbed,
-} = require('../utils/embedBuilder');
-const { formatIDR, getDLPrice, idrToDL } = require('../utils/currency');
+} = require("../utils/embedBuilder");
+const { formatIDR, getDLPrice, idrToDL } = require("../utils/currency");
 
 async function handleButton(interaction) {
   const customId = interaction.customId;
 
-  if (customId === 'panel_setgrowid') {
+  if (customId === "panel_setgrowid") {
     return handleSetGrowId(interaction);
   }
 
-  if (customId === 'panel_buy') {
+  if (customId === "panel_buy") {
     return handleBuy(interaction);
   }
 
-  if (customId === 'panel_howtobuy') {
+  if (customId === "panel_howtobuy") {
     return handleHowToBuy(interaction);
   }
 
-  if (customId === 'panel_myinfo') {
+  if (customId === "panel_myinfo") {
     return handleMyInfo(interaction);
   }
 
-  if (customId === 'panel_addkey') {
+  if (customId === "panel_addkey") {
     return handleAddKey(interaction);
   }
 
-  if (customId.startsWith('confirm_buy:')) {
+  if (customId.startsWith("confirm_buy:")) {
     return handleConfirmBuy(interaction);
   }
 
-  if (customId.startsWith('cancel_buy:')) {
+  if (customId.startsWith("cancel_buy:")) {
     return interaction.update({
-      embeds: [infoEmbed('Cancelled', 'Purchase cancelled.')],
+      embeds: [infoEmbed("Cancelled", "Purchase cancelled.")],
       components: [],
     });
   }
@@ -58,13 +58,13 @@ async function handleSetGrowId(interaction) {
   const isRegistered = userService.isRegistered(interaction.user.id);
 
   const modal = new ModalBuilder()
-    .setCustomId('modal_setgrowid')
-    .setTitle(isRegistered ? 'Update GrowID' : 'Register');
+    .setCustomId("modal_setgrowid")
+    .setTitle(isRegistered ? "Update GrowID" : "Register");
 
   const growIdInput = new TextInputBuilder()
-    .setCustomId('growid')
-    .setLabel('GrowID')
-    .setPlaceholder('Enter your Growtopia GrowID')
+    .setCustomId("growid")
+    .setLabel("GrowID")
+    .setPlaceholder("Enter your Growtopia GrowID")
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setMinLength(3)
@@ -79,7 +79,7 @@ async function handleSetGrowId(interaction) {
 async function handleBuy(interaction) {
   if (!userService.isRegistered(interaction.user.id)) {
     return interaction.reply({
-      embeds: [errorEmbed('Not Registered', 'Please register first.')],
+      embeds: [errorEmbed("Not Registered", "Please register first.")],
       flags: MessageFlags.Ephemeral,
     });
   }
@@ -87,7 +87,7 @@ async function handleBuy(interaction) {
   const scripts = scriptService.getAvailableScripts();
   if (scripts.length === 0) {
     return interaction.reply({
-      embeds: [infoEmbed('No Scripts', 'No scripts available for purchase.')],
+      embeds: [infoEmbed("No Scripts", "No scripts available for purchase.")],
       flags: MessageFlags.Ephemeral,
     });
   }
@@ -99,15 +99,15 @@ async function handleBuy(interaction) {
   }));
 
   const select = new StringSelectMenuBuilder()
-    .setCustomId('select_script')
-    .setPlaceholder('Select a script to buy')
+    .setCustomId("select_script")
+    .setPlaceholder("Select a script to buy")
     .addOptions(options);
 
   const row = new ActionRowBuilder().addComponents(select);
 
   return interaction.reply({
     embeds: [
-      infoEmbed('Buy Script', 'Select the script you want to purchase:'),
+      infoEmbed("Buy Script", "Select the script you want to purchase:"),
     ],
     components: [row],
     flags: MessageFlags.Ephemeral,
@@ -115,8 +115,8 @@ async function handleBuy(interaction) {
 }
 
 async function handleHowToBuy(interaction) {
-  const worldName = settingsService.getSetting('world_name') || 'Not set';
-  const worldOwner = settingsService.getSetting('world_owner') || 'Not set';
+  const worldName = settingsService.getSetting("world_name") || "Not set";
+  const worldOwner = settingsService.getSetting("world_owner") || "Not set";
   const dlPrice = getDLPrice();
 
   const steps = `**How To Buy Script:**
@@ -136,7 +136,7 @@ async function handleHowToBuy(interaction) {
 **Rate:** ${formatIDR(dlPrice)} per DL`;
 
   return interaction.reply({
-    embeds: [infoEmbed('How To Buy', steps)],
+    embeds: [infoEmbed("How To Buy", steps)],
     flags: MessageFlags.Ephemeral,
   });
 }
@@ -146,25 +146,25 @@ async function handleMyInfo(interaction) {
 
   if (!user) {
     return interaction.reply({
-      embeds: [errorEmbed('Not Registered', 'Please register first.')],
+      embeds: [errorEmbed("Not Registered", "Please register first.")],
       flags: MessageFlags.Ephemeral,
     });
   }
 
-  const keyCount = luciferKeyService.countKeysByUser(interaction.user.id);
+  const keyCount = await luciferKeyService.countKeysByUser(interaction.user.id);
   const totalSpent = transactionService.getTotalSpentByUser(
-    interaction.user.id
+    interaction.user.id,
   );
 
   return interaction.reply({
     embeds: [
-      infoEmbed('My Info', null, [
-        { name: '🔸 Discord', value: `<@${user.discord_id}>`, inline: true },
-        { name: '🔸 GrowID', value: user.growid || 'N/A', inline: true },
-        { name: '🔸 Balance', value: formatIDR(user.balance), inline: true },
-        { name: '🔸 Lucifer Keys', value: `${keyCount} keys`, inline: true },
-        { name: '🔸 Total Spent', value: formatIDR(totalSpent), inline: true },
-        { name: '🔸 Registered', value: user.created_at, inline: true },
+      infoEmbed("My Info", null, [
+        { name: "🔸 Discord", value: `<@${user.discord_id}>`, inline: true },
+        { name: "🔸 GrowID", value: user.growid || "N/A", inline: true },
+        { name: "🔸 Balance", value: formatIDR(user.balance), inline: true },
+        { name: "🔸 Lucifer Keys", value: `${keyCount} keys`, inline: true },
+        { name: "🔸 Total Spent", value: formatIDR(totalSpent), inline: true },
+        { name: "🔸 Registered", value: user.created_at, inline: true },
       ]),
     ],
     flags: MessageFlags.Ephemeral,
@@ -174,7 +174,7 @@ async function handleMyInfo(interaction) {
 async function handleAddKey(interaction) {
   if (!userService.isRegistered(interaction.user.id)) {
     return interaction.reply({
-      embeds: [errorEmbed('Not Registered', 'Please register first.')],
+      embeds: [errorEmbed("Not Registered", "Please register first.")],
       flags: MessageFlags.Ephemeral,
     });
   }
@@ -182,7 +182,7 @@ async function handleAddKey(interaction) {
   const scripts = scriptService.getAvailableScripts();
   if (scripts.length === 0) {
     return interaction.reply({
-      embeds: [infoEmbed('No Scripts', 'No scripts available.')],
+      embeds: [infoEmbed("No Scripts", "No scripts available.")],
       flags: MessageFlags.Ephemeral,
     });
   }
@@ -194,21 +194,21 @@ async function handleAddKey(interaction) {
   }));
 
   const select = new StringSelectMenuBuilder()
-    .setCustomId('select_script_addkey')
-    .setPlaceholder('Select script for new key')
+    .setCustomId("select_script_addkey")
+    .setPlaceholder("Select script for new key")
     .addOptions(options);
 
   const row = new ActionRowBuilder().addComponents(select);
 
-  const addKeyPrice = settingsService.getSetting('add_key_price') || '5000';
+  const addKeyPrice = settingsService.getSetting("add_key_price") || "5000";
 
   return interaction.reply({
     embeds: [
       infoEmbed(
-        'Add Lucifer Key',
+        "Add Lucifer Key",
         `Add another Lucifer key to your purchased script.\n\n**Cost:** ${formatIDR(
-          parseInt(addKeyPrice)
-        )} per key`
+          parseInt(addKeyPrice),
+        )} per key`,
       ),
     ],
     components: [row],
@@ -218,16 +218,16 @@ async function handleAddKey(interaction) {
 
 async function handleConfirmBuy(interaction) {
   // Parse with : separator
-  const data = interaction.customId.replace('confirm_buy:', '').split(':');
+  const data = interaction.customId.replace("confirm_buy:", "").split(":");
   const scriptCode = data[0];
-  const luciferUsername = data.slice(1).join(':');
+  const luciferUsername = data.slice(1).join(":");
 
   const script = scriptService.getScriptByCode(scriptCode);
   const user = userService.getUserByDiscordId(interaction.user.id);
 
   if (!script || !user) {
     return interaction.update({
-      embeds: [errorEmbed('Error', 'Invalid data.')],
+      embeds: [errorEmbed("Error", "Invalid data.")],
       components: [],
     });
   }
@@ -235,18 +235,18 @@ async function handleConfirmBuy(interaction) {
   // Re-check script availability
   if (!script.is_available) {
     return interaction.update({
-      embeds: [errorEmbed('Error', 'Script is no longer available.')],
+      embeds: [errorEmbed("Error", "Script is no longer available.")],
       components: [],
     });
   }
 
   // Check if lucifer username already used for this script
-  if (luciferKeyService.isUsernameUsedForScript(script.code, luciferUsername)) {
+  if (await luciferKeyService.isUsernameUsedForScript(script.code, luciferUsername)) {
     return interaction.update({
       embeds: [
         errorEmbed(
-          'Error',
-          `Lucifer username \`${luciferUsername}\` is already used for this script.`
+          "Error",
+          `Lucifer username \`${luciferUsername}\` is already used for this script.`,
         ),
       ],
       components: [],
@@ -254,18 +254,20 @@ async function handleConfirmBuy(interaction) {
   }
 
   // Atomic balance deduction with race condition prevention
-  const { db } = require('../database/db');
-  const result = db.prepare(
-    'UPDATE users SET balance = balance - ? WHERE discord_id = ? AND balance >= ?'
-  ).run(script.price, user.discord_id, script.price);
+  const { db } = require("../database/db");
+  const result = db
+    .prepare(
+      "UPDATE users SET balance = balance - ? WHERE discord_id = ? AND balance >= ?",
+    )
+    .run(script.price, user.discord_id, script.price);
 
   // Check if update was successful (balance was sufficient)
   if (result.changes === 0) {
     return interaction.update({
       embeds: [
         errorEmbed(
-          'Insufficient Balance',
-          `You don't have enough balance to complete this purchase.`
+          "Insufficient Balance",
+          `You don't have enough balance to complete this purchase.`,
         ),
       ],
       components: [],
@@ -277,15 +279,15 @@ async function handleConfirmBuy(interaction) {
     script_id: script.id,
     discord_id: user.discord_id,
     total_amount: script.price,
-    status: 'completed',
+    status: "completed",
   });
   const orderId = txResult.lastInsertRowid;
 
   // Create lucifer key
-  luciferKeyService.createLuciferKey(
+  await luciferKeyService.createLuciferKey(
     user.discord_id,
     script.code,
-    luciferUsername
+    luciferUsername,
   );
 
   // Add role if configured
@@ -293,20 +295,20 @@ async function handleConfirmBuy(interaction) {
     try {
       await interaction.member.roles.add(script.role_id);
     } catch (e) {
-      console.error('Failed to add role:', e);
+      console.error("Failed to add role:", e);
     }
   }
 
   // Add buyer role
-  const BUYER_ROLE_ID = '1153399882032365598';
+  const BUYER_ROLE_ID = "1153399882032365598";
   try {
     await interaction.member.roles.add(BUYER_ROLE_ID);
   } catch (e) {
-    console.error('Failed to add buyer role:', e);
+    console.error("Failed to add buyer role:", e);
   }
 
   // Send transaction log
-  const logChannelId = settingsService.getSetting('transaction_log_channel');
+  const logChannelId = settingsService.getSetting("transaction_log_channel");
   if (logChannelId) {
     try {
       const logChannel = await interaction.client.channels.fetch(logChannelId);
@@ -317,15 +319,15 @@ async function handleConfirmBuy(interaction) {
         }>\n<:oldarrow:1155818329005637682> Script: **${
           script.name
         }**\n<:oldarrow:1155818329005637682> Price: **${formatIDR(
-          script.price
+          script.price,
         )}**`,
       });
       logEmbed.setImage(
-        'https://cdn.discordapp.com/attachments/1146148490867650601/1155230994429907014/rubotfix.gif'
+        "https://cdn.discordapp.com/attachments/1146148490867650601/1155230994429907014/rubotfix.gif",
       );
       await logChannel.send({ embeds: [logEmbed] });
     } catch (e) {
-      console.error('Failed to send log:', e);
+      console.error("Failed to send log:", e);
     }
   }
 
@@ -334,16 +336,16 @@ async function handleConfirmBuy(interaction) {
     await interaction.user.send({
       embeds: [
         successEmbed(
-          'Purchase Successful',
+          "Purchase Successful",
           `Thank you for purchasing **${
             script.name
           }**!\n\n🔸 **Price:** ${formatIDR(
-            script.price
+            script.price,
           )}\n🔸 **Lucifer Username:** \`${luciferUsername}\`\n${
             script.download_link
               ? `🔸 **Download:** ${script.download_link}`
-              : ''
-          }`
+              : ""
+          }`,
         ),
       ],
     });
@@ -354,12 +356,14 @@ async function handleConfirmBuy(interaction) {
   return interaction.update({
     embeds: [
       successEmbed(
-        'Purchase Complete',
+        "Purchase Complete",
         `You have purchased **${
           script.name
         }**!\n\n🔸 **Lucifer Username:** \`${luciferUsername}\`\n${
-          script.role_id ? `🔸 **Role:** <@&${script.role_id}>` : ''
-        }`
+          script.role_id ? `🔸 **Role:** <@&${script.role_id}>\n` : ""
+        }${
+          script.download_link ? `🔸 **Download:** ${script.download_link}` : ""
+        }`,
       ),
     ],
     components: [],

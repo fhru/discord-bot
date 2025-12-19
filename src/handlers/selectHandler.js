@@ -3,21 +3,21 @@ const {
   TextInputBuilder,
   TextInputStyle,
   ActionRowBuilder,
-} = require('discord.js');
-const scriptService = require('../services/scriptService');
-const userService = require('../services/userService');
-const luciferKeyService = require('../services/luciferKeyService');
-const { errorEmbed } = require('../utils/embedBuilder');
-const { formatIDR } = require('../utils/currency');
+} = require("discord.js");
+const scriptService = require("../services/scriptService");
+const userService = require("../services/userService");
+const luciferKeyService = require("../services/luciferKeyService");
+const { errorEmbed } = require("../utils/embedBuilder");
+const { formatIDR } = require("../utils/currency");
 
 async function handleSelect(interaction) {
   const customId = interaction.customId;
 
-  if (customId === 'select_script') {
+  if (customId === "select_script") {
     return handleScriptSelect(interaction);
   }
 
-  if (customId === 'select_script_addkey') {
+  if (customId === "select_script_addkey") {
     return handleAddKeySelect(interaction);
   }
 }
@@ -29,14 +29,14 @@ async function handleScriptSelect(interaction) {
 
   if (!script) {
     return interaction.update({
-      embeds: [errorEmbed('Error', 'Script not found.')],
+      embeds: [errorEmbed("Error", "Script not found.")],
       components: [],
     });
   }
 
   if (!user) {
     return interaction.update({
-      embeds: [errorEmbed('Error', 'You are not registered.')],
+      embeds: [errorEmbed("Error", "You are not registered.")],
       components: [],
     });
   }
@@ -45,10 +45,10 @@ async function handleScriptSelect(interaction) {
     return interaction.update({
       embeds: [
         errorEmbed(
-          'Insufficient Balance',
+          "Insufficient Balance",
           `You need ${formatIDR(script.price)} but only have ${formatIDR(
-            user.balance
-          )}.\n\nPlease top up your balance first.`
+            user.balance,
+          )}.\n\nPlease top up your balance first.`,
         ),
       ],
       components: [],
@@ -61,9 +61,9 @@ async function handleScriptSelect(interaction) {
     .setTitle(`Buy ${script.name}`);
 
   const luciferInput = new TextInputBuilder()
-    .setCustomId('lucifer_username')
-    .setLabel('Lucifer Username')
-    .setPlaceholder('Enter your Lucifer username')
+    .setCustomId("lucifer_username")
+    .setLabel("Lucifer Username")
+    .setPlaceholder("Enter your Lucifer username")
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setMinLength(3)
@@ -81,15 +81,17 @@ async function handleAddKeySelect(interaction) {
 
   if (!script) {
     return interaction.update({
-      embeds: [errorEmbed('Error', 'Script not found.')],
+      embeds: [errorEmbed("Error", "Script not found.")],
       components: [],
     });
   }
 
   // Check if user has purchased this script
-  if (!luciferKeyService.hasKeyForScript(interaction.user.id, scriptCode)) {
+  if (
+    !(await luciferKeyService.hasKeyForScript(interaction.user.id, scriptCode))
+  ) {
     return interaction.update({
-      embeds: [errorEmbed('Error', 'You need to purchase this script first.')],
+      embeds: [errorEmbed("Error", "You need to purchase this script first.")],
       components: [],
     });
   }
@@ -100,9 +102,9 @@ async function handleAddKeySelect(interaction) {
     .setTitle(`Add Key - ${script.name}`);
 
   const luciferInput = new TextInputBuilder()
-    .setCustomId('lucifer_username')
-    .setLabel('New Lucifer Username')
-    .setPlaceholder('Enter new Lucifer username')
+    .setCustomId("lucifer_username")
+    .setLabel("New Lucifer Username")
+    .setPlaceholder("Enter new Lucifer username")
     .setStyle(TextInputStyle.Short)
     .setRequired(true)
     .setMinLength(3)

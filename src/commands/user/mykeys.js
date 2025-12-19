@@ -19,7 +19,7 @@ module.exports = {
       });
     }
 
-    const keys = luciferKeyService.getLuciferKeysByUser(interaction.user.id);
+    const keys = await luciferKeyService.getLuciferKeysByUser(interaction.user.id);
 
     return paginatedReply(interaction, {
       title: 'My Lucifer Keys',

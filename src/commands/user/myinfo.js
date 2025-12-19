@@ -20,7 +20,7 @@ module.exports = {
       });
     }
 
-    const keyCount = luciferKeyService.countKeysByUser(interaction.user.id);
+    const keyCount = await luciferKeyService.countKeysByUser(interaction.user.id);
     const totalSpent = transactionService.getTotalSpentByUser(interaction.user.id);
 
     return interaction.reply({

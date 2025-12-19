@@ -1,62 +1,140 @@
-const { db } = require('../database/db');
+const scriptService = require('./scriptService');
+const userService = require('./userService');
 
-function createLuciferKey(discordId, scriptCode, luciferUsername) {
-  const stmt = db.prepare(`
-    INSERT INTO lucifer_key (discord_id, script_code, lucifer_username)
-    VALUES (?, ?, ?)
-  `);
-  return stmt.run(discordId, scriptCode, luciferUsername);
+const API_URL = process.env.RUBOT_API_URL;
+const API_KEY = process.env.RUBOT_API_KEY;
+
+async function apiRequest(endpoint, options = {}) {
+  const url = `${API_URL}${endpoint}`;
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-API-Key': API_KEY,
+    ...options.headers
+  };
+
+  const response = await fetch(url, { ...options, headers });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || `API error: ${response.status}`);
+  }
+
+  return response.json();
 }
 
-function getLuciferKeysByUser(discordId) {
-  return db.prepare(`
-    SELECT lk.*, s.name as script_name
-    FROM lucifer_key lk
-    LEFT JOIN scripts s ON lk.script_code = s.code
-    WHERE lk.discord_id = ?
-    ORDER BY lk.created_at DESC
-  `).all(discordId);
+async function createLuciferKey(discordId, scriptCode, luciferUsername) {
+  const result = await apiRequest('/key-create', {
+    method: 'POST',
+    body: JSON.stringify({
+      discord_id: discordId,
+      script_code: scriptCode,
+      lucifer_username: luciferUsername
+    })
+  });
+  return result;
 }
 
-function getLuciferKeysByScript(scriptCode) {
-  return db.prepare(`
-    SELECT lk.*, u.username
-    FROM lucifer_key lk
-    LEFT JOIN users u ON lk.discord_id = u.discord_id
-    WHERE lk.script_code = ?
-    ORDER BY lk.created_at DESC
-  `).all(scriptCode);
+async function getLuciferKeysByUser(discordId) {
+  try {
+    const keys = await apiRequest(`/key/discord/${discordId}`);
+    
+    // Enrich with script_name
+    return keys.map(k => {
+      const script = scriptService.getScriptByCode(k.script_code);
+      return {
+        ...k,
+        script_name: script ? script.name : k.script_code
+      };
+    });
+  } catch (e) {
+    if (e.message === 'Key not found') return [];
+    throw e;
+  }
 }
 
-function getAllLuciferKeys() {
-  return db.prepare(`
-    SELECT lk.*, u.username, s.name as script_name
-    FROM lucifer_key lk
-    LEFT JOIN users u ON lk.discord_id = u.discord_id
-    LEFT JOIN scripts s ON lk.script_code = s.code
-    ORDER BY lk.created_at DESC
-  `).all();
+async function getLuciferKeysByScript(scriptCode) {
+  try {
+    const allKeys = await apiRequest('/key-list');
+    const filtered = allKeys.filter(k => k.script_code === scriptCode);
+    
+    // Enrich with username
+    return filtered.map(k => {
+      const user = userService.getUserByDiscordId(k.discord_id);
+      return {
+        ...k,
+        username: user ? user.username : null
+      };
+    });
+  } catch (e) {
+    console.error('getLuciferKeysByScript error:', e);
+    return [];
+  }
 }
 
-function deleteLuciferKey(id) {
-  return db.prepare('DELETE FROM lucifer_key WHERE id = ?').run(id);
+async function getAllLuciferKeys() {
+  try {
+    const keys = await apiRequest('/key-list');
+    
+    // Enrich with script_name and username
+    return keys.map(k => {
+      const script = scriptService.getScriptByCode(k.script_code);
+      const user = userService.getUserByDiscordId(k.discord_id);
+      return {
+        ...k,
+        script_name: script ? script.name : k.script_code,
+        username: user ? user.username : null
+      };
+    });
+  } catch (e) {
+    console.error('getAllLuciferKeys error:', e);
+    return [];
+  }
 }
 
-function countKeysByUser(discordId) {
-  const result = db.prepare('SELECT COUNT(*) as count FROM lucifer_key WHERE discord_id = ?').get(discordId);
-  return result ? result.count : 0;
+async function deleteLuciferKey(id) {
+  try {
+    const result = await apiRequest(`/key/${id}`, { method: 'DELETE' });
+    return { changes: result.meta?.changes || 1 };
+  } catch (e) {
+    if (e.message === 'Key not found') return { changes: 0 };
+    throw e;
+  }
 }
 
-function hasKeyForScript(discordId, scriptCode) {
-  const key = db.prepare('SELECT * FROM lucifer_key WHERE discord_id = ? AND script_code = ?').get(discordId, scriptCode);
-  return !!key;
+async function countKeysByUser(discordId) {
+  try {
+    const keys = await apiRequest(`/key/discord/${discordId}`);
+    return keys.length;
+  } catch (e) {
+    if (e.message === 'Key not found') return 0;
+    throw e;
+  }
 }
 
-function isUsernameUsedForScript(scriptCode, luciferUsername) {
-  const key = db.prepare(
-    'SELECT * FROM lucifer_key WHERE script_code = ? AND lucifer_username = ? COLLATE NOCASE'
-  ).get(scriptCode, luciferUsername);
-  return !!key;
+async function hasKeyForScript(discordId, scriptCode) {
+  try {
+    const keys = await apiRequest(`/key/discord/${discordId}`);
+    return keys.some(k => k.script_code === scriptCode);
+  } catch (e) {
+    if (e.message === 'Key not found') return false;
+    throw e;
+  }
+}
+
+async function isUsernameUsedForScript(scriptCode, luciferUsername) {
+  try {
+    const result = await apiRequest('/key-validate', {
+      method: 'POST',
+      headers: {},
+      body: JSON.stringify({
+        script_code: scriptCode,
+        lucifer_username: luciferUsername
+      })
+    });
+    return result.valid === true;
+  } catch (e) {
+    return false;
+  }
 }
 
 module.exports = {
