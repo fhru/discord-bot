@@ -47,6 +47,11 @@ module.exports = {
   async execute(interaction) {
     const subcommand = interaction.options.getSubcommand();
 
+    // Defer reply for balance-related subcommands to avoid 3-second timeout
+    if (['setbalance', 'addbalance', 'adddl', 'info', 'delete'].includes(subcommand)) {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    }
+
     if (subcommand === 'list') {
       const users = userService.getAllUsers();
       
@@ -63,17 +68,16 @@ module.exports = {
       const user = userService.getUserByDiscordId(target.id);
 
       if (!user) {
-        return interaction.reply({ embeds: [errorEmbed('Error', 'User not registered.')], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', 'User not registered.')] });
       }
 
-      return interaction.reply({
+      return interaction.editReply({
         embeds: [infoEmbed('User Info', null, [
           { name: '🔸 Discord', value: `<@${user.discord_id}>`, inline: true },
           { name: '🔸 GrowID', value: user.growid || 'N/A', inline: true },
           { name: '🔸 Balance', value: formatIDR(user.balance), inline: true },
           { name: '🔸 Registered', value: user.created_at, inline: false }
-        ])],
-        flags: MessageFlags.Ephemeral
+        ])]
       });
     }
 
@@ -82,11 +86,11 @@ module.exports = {
       const user = userService.getUserByDiscordId(target.id);
 
       if (!user) {
-        return interaction.reply({ embeds: [errorEmbed('Error', 'User not registered.')], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', 'User not registered.')] });
       }
 
       userService.deleteUser(target.id);
-      return interaction.reply({ embeds: [successEmbed('Success', `User <@${target.id}> has been deleted.`)], flags: MessageFlags.Ephemeral });
+      return interaction.editReply({ embeds: [successEmbed('Success', `User <@${target.id}> has been deleted.`)] });
     }
 
     if (subcommand === 'setbalance') {
@@ -94,34 +98,32 @@ module.exports = {
       const amount = interaction.options.getInteger('amount');
 
       if (!userService.isRegistered(target.id)) {
-        return interaction.reply({ embeds: [errorEmbed('Error', 'User not registered.')], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', 'User not registered.')] });
       }
 
       balanceService.setBalance(target.id, amount);
 
-      // DM user
-      try {
-        await target.send({
-          embeds: [successEmbed('Balance Updated', `Your balance has been set!\n\n🔸 **New Balance:** ${formatIDR(amount)}\n🔸 **By:** Admin`)]
-        });
-      } catch (e) {}
-
-      // Balance log
+      // DM user and send log in parallel
       const logChannelId = settingsService.getSetting('balance_log_channel');
-      if (logChannelId) {
-        try {
+      const dmPromise = target.send({
+        embeds: [successEmbed('Balance Updated', `Your balance has been set!\n\n🔸 **New Balance:** ${formatIDR(amount)}\n🔸 **By:** Admin`)]
+      }).catch(() => {});
+
+      const logPromise = (async () => {
+        if (logChannelId) {
           const logChannel = await interaction.client.channels.fetch(logChannelId);
           const censoredName = censorUsername(target.username);
           const embed = new EmbedBuilder()
             .setColor(NEON_GREEN)
             .setDescription(`${formatIDR(amount)} has been set to ${censoredName}`);
           await logChannel.send({ embeds: [embed] });
-        } catch (e) {}
-      }
+        }
+      })().catch(() => {});
 
-      return interaction.reply({ 
-        embeds: [successEmbed('Success', `Balance <@${target.id}> set to ${formatIDR(amount)}`)], 
-        flags: MessageFlags.Ephemeral 
+      await Promise.allSettled([dmPromise, logPromise]);
+
+      return interaction.editReply({ 
+        embeds: [successEmbed('Success', `Balance <@${target.id}> set to ${formatIDR(amount)}`)]
       });
     }
 
@@ -130,34 +132,32 @@ module.exports = {
       const amount = interaction.options.getInteger('amount');
 
       if (!userService.isRegistered(target.id)) {
-        return interaction.reply({ embeds: [errorEmbed('Error', 'User not registered.')], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', 'User not registered.')] });
       }
 
       const newBalance = balanceService.addBalance(target.id, amount);
 
-      // DM user
-      try {
-        await target.send({
-          embeds: [successEmbed('Balance Added', `Your balance has been updated!\n\n🔸 **Amount:** +${formatIDR(amount)}\n🔸 **New Balance:** ${formatIDR(newBalance)}\n🔸 **By:** Admin`)]
-        });
-      } catch (e) {}
-
-      // Balance log
+      // DM user and send log in parallel
       const logChannelId2 = settingsService.getSetting('balance_log_channel');
-      if (logChannelId2) {
-        try {
+      const dmPromise = target.send({
+        embeds: [successEmbed('Balance Added', `Your balance has been updated!\n\n🔸 **Amount:** +${formatIDR(amount)}\n🔸 **New Balance:** ${formatIDR(newBalance)}\n🔸 **By:** Admin`)]
+      }).catch(() => {});
+
+      const logPromise = (async () => {
+        if (logChannelId2) {
           const logChannel = await interaction.client.channels.fetch(logChannelId2);
           const censoredName = censorUsername(target.username);
           const embed = new EmbedBuilder()
             .setColor(NEON_GREEN)
             .setDescription(`${formatIDR(amount)} has been added to ${censoredName}`);
           await logChannel.send({ embeds: [embed] });
-        } catch (e) {}
-      }
+        }
+      })().catch(() => {});
 
-      return interaction.reply({ 
-        embeds: [successEmbed('Success', `Added ${formatIDR(amount)} to <@${target.id}>.\nNew balance: ${formatIDR(newBalance)}`)], 
-        flags: MessageFlags.Ephemeral 
+      await Promise.allSettled([dmPromise, logPromise]);
+
+      return interaction.editReply({ 
+        embeds: [successEmbed('Success', `Added ${formatIDR(amount)} to <@${target.id}>.\nNew balance: ${formatIDR(newBalance)}`)]
       });
     }
 
@@ -167,34 +167,32 @@ module.exports = {
       const idr = dlToIDR(dl);
 
       if (!userService.isRegistered(target.id)) {
-        return interaction.reply({ embeds: [errorEmbed('Error', 'User not registered.')], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', 'User not registered.')] });
       }
 
       const newBalance = balanceService.addBalance(target.id, idr);
 
-      // DM user
-      try {
-        await target.send({
-          embeds: [successEmbed('Balance Added', `Your balance has been updated!\n\n🔸 **Amount:** +${dl} DL (${formatIDR(idr)})\n🔸 **New Balance:** ${formatIDR(newBalance)}\n🔸 **By:** Admin`)]
-        });
-      } catch (e) {}
-
-      // Balance log
+      // DM user and send log in parallel
       const logChannelId3 = settingsService.getSetting('balance_log_channel');
-      if (logChannelId3) {
-        try {
+      const dmPromise = target.send({
+        embeds: [successEmbed('Balance Added', `Your balance has been updated!\n\n🔸 **Amount:** +${dl} DL (${formatIDR(idr)})\n🔸 **New Balance:** ${formatIDR(newBalance)}\n🔸 **By:** Admin`)]
+      }).catch(() => {});
+
+      const logPromise = (async () => {
+        if (logChannelId3) {
           const logChannel = await interaction.client.channels.fetch(logChannelId3);
           const censoredName = censorUsername(target.username);
           const embed = new EmbedBuilder()
             .setColor(NEON_GREEN)
             .setDescription(`${formatIDR(idr)} has been added to ${censoredName}`);
           await logChannel.send({ embeds: [embed] });
-        } catch (e) {}
-      }
+        }
+      })().catch(() => {});
 
-      return interaction.reply({ 
-        embeds: [successEmbed('Success', `Added ${dl} DL (${formatIDR(idr)}) to <@${target.id}>.\nNew balance: ${formatIDR(newBalance)}`)], 
-        flags: MessageFlags.Ephemeral 
+      await Promise.allSettled([dmPromise, logPromise]);
+
+      return interaction.editReply({ 
+        embeds: [successEmbed('Success', `Added ${dl} DL (${formatIDR(idr)}) to <@${target.id}>.\nNew balance: ${formatIDR(newBalance)}`)]
       });
     }
   }

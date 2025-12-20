@@ -12,10 +12,10 @@ module.exports = {
     const saweriaChannelId = settingsService.getSetting('saweria_channel');
     if (!saweriaChannelId || message.channel.id !== saweriaChannelId) return;
 
-    // Parse Saweria embed message
+    // Parse Saweria embed messagess
     // Saweria sends embed with title: "{amount} From {donator}"
     if (!message.embeds || message.embeds.length === 0) return;
-    
+
     const embed = message.embeds[0];
     if (!embed.title) return;
 
@@ -48,7 +48,9 @@ module.exports = {
         const censoredName = censorUsername(user.username);
         const logEmbed = new EmbedBuilder()
           .setColor(NEON_GREEN)
-          .setDescription(`${formatIDR(amount)} has been added to ${censoredName}`);
+          .setDescription(
+            `${formatIDR(amount)} has been added to ${censoredName}`
+          );
         await logChannel.send({ embeds: [logEmbed] });
       } catch (e) {
         console.error('Failed to send balance log:', e);
@@ -59,7 +61,16 @@ module.exports = {
     try {
       const discordUser = await message.client.users.fetch(user.discord_id);
       await discordUser.send({
-        embeds: [successEmbed('Balance Added', `Your balance has been updated!\n\n🔸 **Amount:** +${formatIDR(amount)}\n🔸 **New Balance:** ${formatIDR(newBalance)}\n🔸 **Source:** Saweria`)]
+        embeds: [
+          successEmbed(
+            'Balance Added',
+            `Your balance has been updated!\n\n🔸 **Amount:** +${formatIDR(
+              amount
+            )}\n🔸 **New Balance:** ${formatIDR(
+              newBalance
+            )}\n🔸 **Source:** Saweria`
+          ),
+        ],
       });
     } catch (e) {
       // User has DMs disabled
@@ -72,6 +83,8 @@ module.exports = {
       // Can't react
     }
 
-    console.log(`Saweria: Added ${formatIDR(amount)} to ${growid} (${user.discord_id})`);
-  }
+    console.log(
+      `Saweria: Added ${formatIDR(amount)} to ${growid} (${user.discord_id})`
+    );
+  },
 };

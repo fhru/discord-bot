@@ -7,22 +7,19 @@ function getBalance(discordId) {
 }
 
 function addBalance(discordId, amount) {
-  const user = userService.getUserByDiscordId(discordId);
-  if (!user) return null;
-  
-  const newBalance = user.balance + amount;
-  db.prepare('UPDATE users SET balance = ? WHERE discord_id = ?').run(newBalance, discordId);
-  return newBalance;
+  // Atomic update to prevent race conditions
+  const result = db.prepare(
+    'UPDATE users SET balance = balance + ? WHERE discord_id = ? RETURNING balance'
+  ).get(amount, discordId);
+  return result ? result.balance : null;
 }
 
 function deductBalance(discordId, amount) {
-  const user = userService.getUserByDiscordId(discordId);
-  if (!user) return null;
-  if (user.balance < amount) return null;
-  
-  const newBalance = user.balance - amount;
-  db.prepare('UPDATE users SET balance = ? WHERE discord_id = ?').run(newBalance, discordId);
-  return newBalance;
+  // Atomic deduction with balance check to prevent race conditions
+  const result = db.prepare(
+    'UPDATE users SET balance = balance - ? WHERE discord_id = ? AND balance >= ? RETURNING balance'
+  ).get(amount, discordId, amount);
+  return result ? result.balance : null;
 }
 
 function setBalance(discordId, amount) {
