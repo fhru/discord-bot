@@ -35,9 +35,18 @@ module.exports = {
         .addUserOption(opt => opt.setName('target').setDescription('Target user').setRequired(true))
         .addStringOption(opt => opt.setName('code').setDescription('Script code').setRequired(true))
         .addStringOption(opt => opt.setName('username').setDescription('Lucifer username').setRequired(true))
+    )
+    .addSubcommand(sub =>
+      sub.setName('bulkadd')
+        .setDescription('Add multiple Lucifer Keys to user')
+        .addUserOption(opt => opt.setName('target').setDescription('Target user').setRequired(true))
+        .addStringOption(opt => opt.setName('code').setDescription('Script code').setRequired(true))
+        .addStringOption(opt => opt.setName('usernames').setDescription('Lucifer usernames (comma-separated)').setRequired(true))
     ),
 
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'list') {
@@ -80,10 +89,10 @@ module.exports = {
       const result = await luciferKeyService.deleteLuciferKey(id);
 
       if (result.changes === 0) {
-        return interaction.reply({ embeds: [errorEmbed('Error', `Key #${id} not found.`)], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', `Key #${id} not found.`)] });
       }
 
-      return interaction.reply({ embeds: [successEmbed('Success', `Key #${id} deleted.`)], flags: MessageFlags.Ephemeral });
+      return interaction.editReply({ embeds: [successEmbed('Success', `Key #${id} deleted.`)] });
     }
 
     if (subcommand === 'add') {
@@ -93,27 +102,83 @@ module.exports = {
 
       // Validasi user terdaftar
       if (!userService.isRegistered(target.id)) {
-        return interaction.reply({ embeds: [errorEmbed('Error', `<@${target.id}> is not registered.`)], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', `<@${target.id}> is not registered.`)] });
       }
 
       // Validasi script ada
       const script = scriptService.getScriptByCode(code);
       if (!script) {
-        return interaction.reply({ embeds: [errorEmbed('Error', `Script \`${code}\` not found.`)], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', `Script \`${code}\` not found.`)] });
       }
 
       // Check if username is already used for this script
       if (await luciferKeyService.isUsernameUsedForScript(code, luciferUsername)) {
-        return interaction.reply({ embeds: [errorEmbed('Error', `Lucifer username \`${luciferUsername}\` is already used for this script.`)], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [errorEmbed('Error', `Lucifer username \`${luciferUsername}\` is already used for this script.`)] });
       }
 
       // Create lucifer key
       await luciferKeyService.createLuciferKey(target.id, code, luciferUsername);
 
-      return interaction.reply({ 
-        embeds: [successEmbed('Success', `Lucifer Key added!\n\n🔸 **User:** <@${target.id}>\n🔸 **Script:** ${script.name}\n🔸 **Username:** \`${luciferUsername}\``)], 
-        flags: MessageFlags.Ephemeral 
+      return interaction.editReply({ 
+        embeds: [successEmbed('Success', `Lucifer Key added!\n\n🔸 **User:** <@${target.id}>\n🔸 **Script:** ${script.name}\n🔸 **Username:** \`${luciferUsername}\``)]
       });
+    }
+
+    if (subcommand === 'bulkadd') {
+      const target = interaction.options.getUser('target');
+      const code = interaction.options.getString('code');
+      const usernamesRaw = interaction.options.getString('usernames');
+
+      // Parse usernames (split by comma, trim whitespace)
+      const usernames = usernamesRaw.split(',').map(u => u.trim()).filter(u => u.length > 0);
+
+      if (usernames.length === 0) {
+        return interaction.editReply({ embeds: [errorEmbed('Error', 'No valid usernames provided.')] });
+      }
+
+      // Validasi user terdaftar
+      if (!userService.isRegistered(target.id)) {
+        return interaction.editReply({ embeds: [errorEmbed('Error', `<@${target.id}> is not registered.`)] });
+      }
+
+      // Validasi script ada
+      const script = scriptService.getScriptByCode(code);
+      if (!script) {
+        return interaction.editReply({ embeds: [errorEmbed('Error', `Script \`${code}\` not found.`)] });
+      }
+
+      const success = [];
+      const failed = [];
+
+      for (const username of usernames) {
+        try {
+          // Check if username is already used for this script
+          if (await luciferKeyService.isUsernameUsedForScript(code, username)) {
+            failed.push({ username, reason: 'already used' });
+            continue;
+          }
+
+          // Create lucifer key
+          await luciferKeyService.createLuciferKey(target.id, code, username);
+          success.push(username);
+        } catch (e) {
+          failed.push({ username, reason: e.message || 'unknown error' });
+        }
+      }
+
+      // Build response message
+      let message = `**User:** <@${target.id}>\n**Script:** ${script.name}\n\n`;
+
+      if (success.length > 0) {
+        message += `✅ **Success:** ${success.length} keys\n${success.map(u => `- \`${u}\``).join('\n')}\n\n`;
+      }
+
+      if (failed.length > 0) {
+        message += `❌ **Failed:** ${failed.length} keys\n${failed.map(f => `- \`${f.username}\` (${f.reason})`).join('\n')}`;
+      }
+
+      const embedType = failed.length === usernames.length ? errorEmbed : successEmbed;
+      return interaction.editReply({ embeds: [embedType('Bulk Add Complete', message)] });
     }
   }
 };

@@ -20,6 +20,8 @@ module.exports = {
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'create') {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      
       try {
         const embed = panelService.buildPanelEmbed();
         const buttons = panelService.buildPanelButtons();
@@ -31,15 +33,13 @@ module.exports = {
 
         panelService.createPanel(interaction.guild.id, interaction.channel.id, message.id);
 
-        return interaction.reply({ 
-          embeds: [successEmbed('Success', 'Panel created! It will auto-update every minute.')], 
-          flags: MessageFlags.Ephemeral 
+        return interaction.editReply({ 
+          embeds: [successEmbed('Success', 'Panel created! It will auto-update every minute.')]
         });
       } catch (error) {
         console.error('Panel create error:', error);
-        return interaction.reply({ 
-          embeds: [errorEmbed('Error', 'Failed to create panel.')], 
-          flags: MessageFlags.Ephemeral 
+        return interaction.editReply({ 
+          embeds: [errorEmbed('Error', 'Failed to create panel.')]
         });
       }
     }

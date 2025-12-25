@@ -142,12 +142,13 @@ async function handleHowToBuy(interaction) {
 }
 
 async function handleMyInfo(interaction) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  
   const user = userService.getUserByDiscordId(interaction.user.id);
 
   if (!user) {
-    return interaction.reply({
-      embeds: [errorEmbed("Not Registered", "Please register first.")],
-      flags: MessageFlags.Ephemeral,
+    return interaction.editReply({
+      embeds: [errorEmbed("Not Registered", "Please register first.")]
     });
   }
 
@@ -156,7 +157,7 @@ async function handleMyInfo(interaction) {
     interaction.user.id,
   );
 
-  return interaction.reply({
+  return interaction.editReply({
     embeds: [
       infoEmbed("My Info", null, [
         { name: "🔸 Discord", value: `<@${user.discord_id}>`, inline: true },
@@ -166,8 +167,7 @@ async function handleMyInfo(interaction) {
         { name: "🔸 Total Spent", value: formatIDR(totalSpent), inline: true },
         { name: "🔸 Registered", value: user.created_at, inline: true },
       ]),
-    ],
-    flags: MessageFlags.Ephemeral,
+    ]
   });
 }
 
@@ -217,6 +217,8 @@ async function handleAddKey(interaction) {
 }
 
 async function handleConfirmBuy(interaction) {
+  await interaction.deferUpdate();
+  
   // Parse with : separator
   const data = interaction.customId.replace("confirm_buy:", "").split(":");
   const scriptCode = data[0];
@@ -226,7 +228,7 @@ async function handleConfirmBuy(interaction) {
   const user = userService.getUserByDiscordId(interaction.user.id);
 
   if (!script || !user) {
-    return interaction.update({
+    return interaction.editReply({
       embeds: [errorEmbed("Error", "Invalid data.")],
       components: [],
     });
@@ -234,7 +236,7 @@ async function handleConfirmBuy(interaction) {
 
   // Re-check script availability
   if (!script.is_available) {
-    return interaction.update({
+    return interaction.editReply({
       embeds: [errorEmbed("Error", "Script is no longer available.")],
       components: [],
     });
@@ -242,7 +244,7 @@ async function handleConfirmBuy(interaction) {
 
   // Check if lucifer username already used for this script
   if (await luciferKeyService.isUsernameUsedForScript(script.code, luciferUsername)) {
-    return interaction.update({
+    return interaction.editReply({
       embeds: [
         errorEmbed(
           "Error",
@@ -263,7 +265,7 @@ async function handleConfirmBuy(interaction) {
 
   // Check if update was successful (balance was sufficient)
   if (result.changes === 0) {
-    return interaction.update({
+    return interaction.editReply({
       embeds: [
         errorEmbed(
           "Insufficient Balance",
@@ -353,7 +355,7 @@ async function handleConfirmBuy(interaction) {
     // User has DMs disabled
   }
 
-  return interaction.update({
+  return interaction.editReply({
     embeds: [
       successEmbed(
         "Purchase Complete",

@@ -44,8 +44,10 @@ function createDisabledButtons(currentPage, totalPages, uniqueId) {
 }
 
 async function paginatedReply(interaction, { title, items, formatItem, emptyMessage = 'No data found.' }) {
+  const replyMethod = interaction.deferred ? 'editReply' : 'reply';
+  
   if (items.length === 0) {
-    return interaction.reply({
+    return interaction[replyMethod]({
       embeds: [infoEmbed(title, emptyMessage)],
       flags: MessageFlags.Ephemeral
     });
@@ -63,12 +65,17 @@ async function paginatedReply(interaction, { title, items, formatItem, emptyMess
     return `Total: ${items.length}\n\n${list}`;
   };
 
-  const message = await interaction.reply({
+  const replyOptions = {
     embeds: [infoEmbed(title, getPageContent(currentPage))],
     components: totalPages > 1 ? [createPaginationButtons(currentPage, totalPages, uniqueId)] : [],
-    flags: MessageFlags.Ephemeral,
-    fetchReply: true
-  });
+    flags: MessageFlags.Ephemeral
+  };
+  
+  if (!interaction.deferred) {
+    replyOptions.fetchReply = true;
+  }
+  
+  const message = await interaction[replyMethod](replyOptions);
 
   if (totalPages <= 1) return;
 

@@ -20,15 +20,16 @@ async function handleModal(interaction) {
 }
 
 async function handleSetGrowIdModal(interaction) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  
   const growid = interaction.fields.getTextInputValue('growid');
   const isRegistered = userService.isRegistered(interaction.user.id);
 
   // Check if GrowID already used by another user
   const existingUser = userService.getUserByGrowId(growid);
   if (existingUser && existingUser.discord_id !== interaction.user.id) {
-    return interaction.reply({ 
-      embeds: [errorEmbed('Error', `GrowID \`${growid}\` is already registered by another user.`)], 
-      flags: MessageFlags.Ephemeral 
+    return interaction.editReply({ 
+      embeds: [errorEmbed('Error', `GrowID \`${growid}\` is already registered by another user.`)]
     });
   }
 
@@ -37,9 +38,8 @@ async function handleSetGrowIdModal(interaction) {
       // Update GrowID
       userService.updateUser(interaction.user.id, { growid });
 
-      return interaction.reply({ 
-        embeds: [successEmbed('GrowID Updated', `Your GrowID has been updated!\n\n🔸 **New GrowID:** \`${growid}\``)], 
-        flags: MessageFlags.Ephemeral 
+      return interaction.editReply({ 
+        embeds: [successEmbed('GrowID Updated', `Your GrowID has been updated!\n\n🔸 **New GrowID:** \`${growid}\``)]
       });
     } else {
       // Create new user
@@ -58,16 +58,14 @@ async function handleSetGrowIdModal(interaction) {
         }
       }
 
-      return interaction.reply({ 
-        embeds: [successEmbed('Registration Successful', `Welcome!\n\n🔸 **GrowID:** \`${growid}\`\n\nYou can now top up balance and purchase scripts.`)], 
-        flags: MessageFlags.Ephemeral 
+      return interaction.editReply({ 
+        embeds: [successEmbed('Registration Successful', `Welcome!\n\n🔸 **GrowID:** \`${growid}\`\n\nYou can now top up balance and purchase scripts.`)]
       });
     }
   } catch (error) {
     console.error('SetGrowId error:', error);
-    return interaction.reply({ 
-      embeds: [errorEmbed('Error', 'Operation failed. Please try again.')], 
-      flags: MessageFlags.Ephemeral 
+    return interaction.editReply({ 
+      embeds: [errorEmbed('Error', 'Operation failed. Please try again.')]
     });
   }
 }
@@ -126,6 +124,8 @@ async function handleLuciferModal(interaction) {
 }
 
 async function handleAddKeyModal(interaction) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  
   const scriptCode = interaction.customId.replace('modal_addkey_', '');
   const luciferUsername = interaction.fields.getTextInputValue('lucifer_username');
 
@@ -138,25 +138,22 @@ async function handleAddKeyModal(interaction) {
   const addKeyPrice = parseInt(settingsService.getSetting('add_key_price') || '5000');
 
   if (!script) {
-    return interaction.reply({ 
-      embeds: [errorEmbed('Error', 'Script not found.')], 
-      flags: MessageFlags.Ephemeral 
+    return interaction.editReply({ 
+      embeds: [errorEmbed('Error', 'Script not found.')]
     });
   }
 
   // Check if user has purchased this script
   if (!await luciferKeyService.hasKeyForScript(interaction.user.id, scriptCode)) {
-    return interaction.reply({ 
-      embeds: [errorEmbed('Error', 'You need to purchase this script first before adding extra keys.')], 
-      flags: MessageFlags.Ephemeral 
+    return interaction.editReply({ 
+      embeds: [errorEmbed('Error', 'You need to purchase this script first before adding extra keys.')]
     });
   }
 
   // Check if lucifer username already used for this script
   if (await luciferKeyService.isUsernameUsedForScript(scriptCode, luciferUsername)) {
-    return interaction.reply({ 
-      embeds: [errorEmbed('Error', `Lucifer username \`${luciferUsername}\` is already used for this script.`)], 
-      flags: MessageFlags.Ephemeral 
+    return interaction.editReply({ 
+      embeds: [errorEmbed('Error', `Lucifer username \`${luciferUsername}\` is already used for this script.`)]
     });
   }
 
@@ -166,18 +163,16 @@ async function handleAddKeyModal(interaction) {
   ).run(addKeyPrice, interaction.user.id, addKeyPrice);
 
   if (result.changes === 0) {
-    return interaction.reply({ 
-      embeds: [errorEmbed('Insufficient Balance', `You don't have enough balance.`)], 
-      flags: MessageFlags.Ephemeral 
+    return interaction.editReply({ 
+      embeds: [errorEmbed('Insufficient Balance', `You don't have enough balance.`)]
     });
   }
 
   // Create new key
   await luciferKeyService.createLuciferKey(interaction.user.id, scriptCode, luciferUsername);
 
-  return interaction.reply({
-    embeds: [successEmbed('Key Added', `New Lucifer key added!\n\n🔸 **Script:** ${script.name}\n🔸 **Username:** \`${luciferUsername}\`\n🔸 **Cost:** ${formatIDR(addKeyPrice)}`)],
-    flags: MessageFlags.Ephemeral
+  return interaction.editReply({
+    embeds: [successEmbed('Key Added', `New Lucifer key added!\n\n🔸 **Script:** ${script.name}\n🔸 **Username:** \`${luciferUsername}\`\n🔸 **Cost:** ${formatIDR(addKeyPrice)}`)]
   });
 }
 

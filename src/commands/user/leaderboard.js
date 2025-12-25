@@ -17,13 +17,15 @@ module.exports = {
     ),
 
   async execute(interaction) {
+    await interaction.deferReply();
+    
     const subcommand = interaction.options.getSubcommand();
 
     if (subcommand === 'balance') {
       const users = userService.getTopBalances(10);
 
       if (users.length === 0) {
-        return interaction.reply({ embeds: [infoEmbed('Top Balance', 'No data.')], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [infoEmbed('Top Balance', 'No data.')] });
       }
 
       const list = users.map((u, i) => {
@@ -31,9 +33,8 @@ module.exports = {
         return `${medal} <@${u.discord_id}> - ${formatIDR(u.balance)}`;
       }).join('\n');
 
-      return interaction.reply({ 
-        embeds: [infoEmbed('Top Balance', list)], 
-        ephemeral: false 
+      return interaction.editReply({ 
+        embeds: [infoEmbed('Top Balance', list)]
       });
     }
 
@@ -41,7 +42,7 @@ module.exports = {
       const users = userService.getTopSpenders(10);
 
       if (users.length === 0) {
-        return interaction.reply({ embeds: [infoEmbed('Top Spenders', 'No data.')], flags: MessageFlags.Ephemeral });
+        return interaction.editReply({ embeds: [infoEmbed('Top Spenders', 'No data.')] });
       }
 
       const list = users.map((u, i) => {
@@ -49,9 +50,8 @@ module.exports = {
         return `${medal} <@${u.discord_id}> - ${formatIDR(u.total_spent)}`;
       }).join('\n');
 
-      return interaction.reply({ 
-        embeds: [infoEmbed('Top Spenders', list)], 
-        ephemeral: false 
+      return interaction.editReply({ 
+        embeds: [infoEmbed('Top Spenders', list)]
       });
     }
   }

@@ -10,12 +10,13 @@ module.exports = {
     .setDescription('View your Lucifer Keys'),
 
   async execute(interaction) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    
     const user = userService.getUserByDiscordId(interaction.user.id);
 
     if (!user) {
-      return interaction.reply({ 
-        embeds: [errorEmbed('Not Registered', 'You need to register first.')], 
-        flags: MessageFlags.Ephemeral 
+      return interaction.editReply({ 
+        embeds: [errorEmbed('Not Registered', 'You need to register first.')]
       });
     }
 
